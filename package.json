@@ -1,0 +1,11 @@
+{
+  "name": "tidibe",
+  "version": "1.0.0",
+  "description": "backend development codebase for tidi",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "author": "Shafayet Ul Islam (Audrie)",
+  "license": "ISC"
+}
