@@ -32,9 +32,16 @@ users.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
 
     try {
+
+        if(password.length < 8){
+            console.log("Password must be greater than 8 characters");
+            return res.status(500).json({ error: 'Password must be greater than 8 characters.' });
+        }
+
         // Hash the password
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
+
 
         // Insert the user into the database
         const sql = 'INSERT INTO Users (username, email, password) VALUES (?, ?, ?)';
