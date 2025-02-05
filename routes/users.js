@@ -1,7 +1,13 @@
 import express from 'express';
 import connection from '../connectiondb.js'; 
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
 
+
+dotenv.config();
 const users = express.Router();
+
 
 users.get('/test', async(req, res)=>{
     res.json({msg: "get api working"});
@@ -22,7 +28,61 @@ users.get('/all', async(req, res)=>{
 });
 
 // register user
+users.post('/register', async (req, res) => {
+    const { username, email, password } = req.body;
 
+    try {
+        // Hash the password
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        // Insert the user into the database
+        const sql = 'INSERT INTO Users (username, email, password) VALUES (?, ?, ?)';
+        const values = [username, email, hashedPassword];
+        await connection.execute(sql, values);
+
+        res.status(201).json({ message: 'User registered successfully!' });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error registering user.' });
+    }
+});
+
+// login user
+users.post('/login', async(req, res)=>{
+    const {email, password} = req.body;
+
+    try{
+        // Check if the user exists in the database
+        const sql = 'SELECT * FROM Users WHERE email = ?';
+        const [rows] = await connection.execute(sql, [email]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+        const user = rows[0];
+
+        // Compare the provided password with the stored hashed password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ error: 'Invalid credentials.' });
+        }
+
+        // Generate a JWT token
+        const token = jwt.sign(
+            { id: user.id, email: user.email }, // Payload
+            process.env.SECRET_KEY, // Secret key
+            { expiresIn: '1h' } // Token expiry
+        );
+
+        res.status(200).json({ message: 'Login successful!', token });
+
+    }catch(error){
+        console.error(error);
+        res.status(500).json({ error: 'Error logging in.' });
+    }
+})
 
 
 
