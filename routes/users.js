@@ -1,5 +1,6 @@
 import express from 'express';
 import connection from '../connectiondb.js'; 
+import authenticate from '../middlewares/authenticate.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
@@ -8,9 +9,19 @@ import dotenv from 'dotenv';
 dotenv.config();
 const users = express.Router();
 
+// procted
+users.get('/test', authenticate, async(req, res)=>{
+    // Extract user information from req.user
+    const userId = req.user.user_id;
+    const userEmail = req.user.email;
 
-users.get('/test', async(req, res)=>{
-    res.json({msg: "get api working"});
+    // Send a response with the extracted information
+    res.json({
+        message: "GET API working",
+        userId,
+        userEmail
+    });
+
 });
 
 // get all the users - test purpose
@@ -78,12 +89,12 @@ users.post('/login', async(req, res)=>{
 
         // Generate a JWT token
         const token = jwt.sign(
-            { id: user.id, email: user.email }, // Payload
+            { id: user.user_id, email: user.email }, // Payload
             process.env.SECRET_KEY, // Secret key
             { expiresIn: '1h' } // Token expiry
         );
 
-        res.status(200).json({ message: 'Login successful!', token });
+        res.status(200).json({ message: 'Login successful', token });
 
     }catch(error){
         console.error(error);
