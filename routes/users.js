@@ -84,7 +84,12 @@ users.post('/login', async(req, res)=>{
         // Compare the provided password with the stored hashed password
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            return res.status(401).json({ error: 'Invalid credentials.' });
+            return res.status(401).json(
+                { 
+                    message: 'Invalid credentials.',
+                    token: 'None'
+                }
+            );
         }
 
         // Generate a JWT token
