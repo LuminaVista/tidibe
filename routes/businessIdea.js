@@ -23,6 +23,12 @@ businessIdea.get('/test', authenticate, async(req, res)=>{
 
 
 // create the businessIdea
+/*
+
+todo: make active/inactice api
+todo: make collaborators api
+
+*/
 businessIdea.post('/create', authenticate, async(req,res)=>{
     // Extract user information from req.user
     const userId = req.user.user_id;
@@ -40,18 +46,31 @@ businessIdea.post('/create', authenticate, async(req,res)=>{
         res.status(201).json({ 
             message: 'BusinessIdea Created Successfully'
         });
-
-
-
-
     }catch(error){
         console.error(error);
         res.status(500).json({ error: 'Error registering user.' });
         return
     }
+});
 
+// get all the businessIdeas for one specific user
+businessIdea.get('/all', authenticate, async (req, res) => {
+    // Extract user ID from authenticated request
+    const userId = req.user.user_id;
 
+    try {
+        // Query to fetch business ideas for the given user
+        const sql = 'SELECT * FROM Business_Ideas WHERE user_id = ?';
+        const [rows] = await connection.execute(sql, [userId]);
 
+        res.status(200).json({ 
+            businessIdeas: rows
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error retrieving business ideas.' });
+        return
+    }
 });
 
 
