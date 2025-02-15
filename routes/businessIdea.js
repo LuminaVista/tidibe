@@ -53,15 +53,15 @@ businessIdea.post('/create', authenticate, async(req,res)=>{
     }
 });
 
-// get all the businessIdeas for one specific user
+// get all the businessIdeas (ACTIVE Only) for one specific user
 businessIdea.get('/all', authenticate, async (req, res) => {
     // Extract user ID from authenticated request
     const userId = req.user.user_id;
 
     try {
         // Query to fetch business ideas for the given user
-        const sql = 'SELECT * FROM Business_Ideas WHERE user_id = ?';
-        const [rows] = await connection.execute(sql, [userId]);
+        const sql = 'SELECT * FROM Business_Ideas WHERE user_id = ? and isActive = ?';
+        const [rows] = await connection.execute(sql, [userId, true]);
 
         res.status(200).json({ 
             businessIdeas: rows
