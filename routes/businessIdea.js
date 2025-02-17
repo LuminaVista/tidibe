@@ -44,11 +44,12 @@ businessIdea.post('/create', authenticate, async(req,res)=>{
         await connection.execute(sql, values);
 
         res.status(201).json({ 
-            message: 'BusinessIdea Created Successfully'
+            message: 'BusinessIdea Created Successfully',
+            success: true
         });
     }catch(error){
         console.error(error);
-        res.status(500).json({ error: 'Error registering user.' });
+        res.status(500).json({ error: 'BusinessIdea Creation Failed.' });
         return
     }
 });
@@ -60,8 +61,8 @@ businessIdea.get('/all', authenticate, async (req, res) => {
 
     try {
         // Query to fetch business ideas for the given user
-        const sql = 'SELECT * FROM Business_Ideas WHERE user_id = ? and isActive = ?';
-        const [rows] = await connection.execute(sql, [userId, true]);
+        const sql = 'SELECT * FROM Business_Ideas WHERE user_id = ?';
+        const [rows] = await connection.execute(sql, [userId]);
 
         res.status(200).json({ 
             businessIdeas: rows
