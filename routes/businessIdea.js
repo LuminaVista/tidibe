@@ -74,5 +74,28 @@ businessIdea.get('/all', authenticate, async (req, res) => {
     }
 });
 
+// get one business idea details of an autheticated user. 
+businessIdea.get('/:id', authenticate, async (req, res) => {
+    const user_id = req.user.user_id;  // Extract authenticated user ID
+    const business_idea_id = req.params.id;    // Extract business idea ID from URL
+
+    try {
+        // Query to fetch the specific business idea for the authenticated user
+        const sql = 'SELECT * FROM Business_Ideas WHERE user_id = ? AND business_idea_id = ?';
+        const [rows] = await connection.execute(sql, [user_id, business_idea_id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Business idea not found or unauthorized.' });
+        }
+
+        res.status(200).json({ 
+            businessIdea: rows[0] 
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error retrieving business idea details.' });
+    }
+});
+
 
 export { businessIdea }
