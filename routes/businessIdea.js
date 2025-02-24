@@ -1,13 +1,16 @@
 import express from 'express';
-import connection from '../connectiondb.js'; 
+import connection from '../connectiondb.js';
 import authenticate from '../middlewares/authenticate.js';
 import dotenv from 'dotenv';
+
+// services
+import { createBusinessStages } from '../Services/stageService.js';
 
 dotenv.config();
 const businessIdea = express.Router();
 
 // procted - test
-businessIdea.get('/test', authenticate, async(req, res)=>{
+businessIdea.get('/test', authenticate, async (req, res) => {
     // Extract user information from req.user
     const userId = req.user.user_id;
     const userEmail = req.user.email;
@@ -29,25 +32,45 @@ todo: make active/inactice api
 todo: make collaborators api
 
 */
-businessIdea.post('/create', authenticate, async(req,res)=>{
+businessIdea.post('/create', authenticate, async (req, res) => {
     // Extract user information from req.user
     const userId = req.user.user_id;
     const userEmail = req.user.email;
 
     const { idea_name, idea_foundation, problem_statement, unique_solution, target_location } = req.body;
 
-    try{
+    try {
+
+        await connection.beginTransaction();
 
         // Insert the businessIdea into the database
         const sql = 'INSERT INTO Business_Ideas (user_id, idea_name, idea_foundation, problem_statement, unique_solution, target_location) VALUES (?, ?, ?, ?, ?, ?)';
         const values = [userId, idea_name, idea_foundation, problem_statement, unique_solution, target_location];
-        await connection.execute(sql, values);
+        const [result] = await connection.execute(sql, values);
 
-        res.status(201).json({ 
+        // get the business idea id
+        const businessIdeaId = result.insertId;
+        console.log(businessIdeaId)
+
+
+        // we have to create the business stage and also Concept 
+        // Create stages using the separate function with the current connection
+        try {
+            await createBusinessStages(connection, businessIdeaId);
+        } catch (stageError) {
+            // Re-throw with more context
+            throw new Error(`Failed to create business stages: ${stageError.message}`);
+        }
+
+        // Commit the transaction
+        await connection.commit();
+
+
+        res.status(201).json({
             message: 'BusinessIdea Created Successfully',
             success: true
         });
-    }catch(error){
+    } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'BusinessIdea Creation Failed.' });
         return
@@ -64,7 +87,7 @@ businessIdea.get('/all', authenticate, async (req, res) => {
         const sql = 'SELECT * FROM Business_Ideas WHERE user_id = ?';
         const [rows] = await connection.execute(sql, [userId]);
 
-        res.status(200).json({ 
+        res.status(200).json({
             businessIdeas: rows
         });
     } catch (error) {
@@ -88,8 +111,8 @@ businessIdea.get('/:id', authenticate, async (req, res) => {
             return res.status(404).json({ error: 'Business idea not found or unauthorized.' });
         }
 
-        res.status(200).json({ 
-            businessIdea: rows[0] 
+        res.status(200).json({
+            businessIdea: rows[0]
         });
     } catch (error) {
         console.error(error);
