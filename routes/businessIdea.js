@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 
 // services
 import { createBusinessStages } from '../Services/stageService.js';
+import { createConcept } from '../Services/conceptService.js';
 
 dotenv.config();
 const businessIdea = express.Router();
@@ -53,13 +54,22 @@ businessIdea.post('/create', authenticate, async (req, res) => {
         console.log(businessIdeaId)
 
 
-        // we have to create the business stage and also Concept 
+        // we have to create the business stages and also Concept Table
+
         // Create stages using the separate function with the current connection
         try {
             await createBusinessStages(connection, businessIdeaId);
         } catch (stageError) {
             // Re-throw with more context
             throw new Error(`Failed to create business stages: ${stageError.message}`);
+        }
+
+        // create Concept Table 
+        try {
+            await createConcept(connection, businessIdeaId);
+        } catch (conceptTableCreationError) {
+            // Re-throw with more context
+            throw new Error(`Failed to create Concept Stage: ${conceptTableCreationError.message}`);
         }
 
         // Commit the transaction
@@ -119,6 +129,8 @@ businessIdea.get('/:id', authenticate, async (req, res) => {
         res.status(500).json({ error: 'Error retrieving business idea details.' });
     }
 });
+
+
 
 
 export { businessIdea }
