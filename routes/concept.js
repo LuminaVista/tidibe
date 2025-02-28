@@ -88,6 +88,8 @@ concept.post('/ai/answer/:business_idea_id', authenticate, async (req, res) => {
                 messages: [{ role: "user", content: ai_prompt }]
             });
             
+            
+
             // answers.push({
             //     concept_question_id: q.concept_question_id,
             //     concept_id: conceptId,

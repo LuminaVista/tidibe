@@ -110,7 +110,7 @@ businessIdea.get('/all', authenticate, async (req, res) => {
 // get one business idea details of an autheticated user. 
 businessIdea.get('/:id', authenticate, async (req, res) => {
     const user_id = req.user.user_id;  // Extract authenticated user ID
-    const business_idea_id = req.params.id;    // Extract business idea ID from URL
+    const business_idea_id = req.params.id; // Extract business idea ID from URL
 
     try {
         // Query to fetch the specific business idea for the authenticated user
@@ -121,12 +121,24 @@ businessIdea.get('/:id', authenticate, async (req, res) => {
             return res.status(404).json({ error: 'Business idea not found or unauthorized.' });
         }
 
+        // Query to fetch associated stages with progress
+        // Query to fetch associated stages with progress
+        const stagesSql = `
+            SELECT Stages.stage_id, Stages.stage_name, Business_Stages.progress, Business_Stages.completed, Stages.sub_stages
+            FROM Business_Stages
+            JOIN Stages ON Business_Stages.stage_id = Stages.stage_id
+            WHERE Business_Stages.business_idea_id = ?
+            ORDER BY Stages.stage_id;`;
+
+        const [stagesRows] = await connection.execute(stagesSql, [business_idea_id]);
+
         res.status(200).json({
-            businessIdea: rows[0]
+            businessIdea: rows[0],
+            stages: stagesRows
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Error retrieving business idea details.' });
+        res.status(500).json({ error: 'Error retrieving business idea details and stages.' });
     }
 });
 
