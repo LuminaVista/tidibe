@@ -122,7 +122,6 @@ businessIdea.get('/:id', authenticate, async (req, res) => {
         }
 
         // Query to fetch associated stages with progress
-        // Query to fetch associated stages with progress
         const stagesSql = `
             SELECT Stages.stage_id, Stages.stage_name, Business_Stages.progress, Business_Stages.completed, Stages.sub_stages
             FROM Business_Stages

@@ -3,6 +3,7 @@ import connection from '../connectiondb.js';
 import authenticate from '../middlewares/authenticate.js';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
+import { businessIdea } from './businessIdea.js';
 
 
 dotenv.config();
@@ -71,7 +72,7 @@ concept.post('/ai/answer/:business_idea_id', authenticate, async (req, res) => {
 
             const ai_prompt = `
             
-                You are a reputed Business Consultant. Clients come to you with their idea and you review them and give them specific feedback. 
+                You are a Senior Business Consultant. Clients come to you with their idea and you review them and give them specific feedback. 
 
                 analyse the ${businessIdea["idea_foundation"]} along with ${businessIdea["problem_statement"]}, ${businessIdea["unique_solution"]}.
                 Consider the  ${businessIdea["target_location"]}, and provide the answer of the following question:
@@ -122,6 +123,40 @@ concept.post('/ai/answer/:business_idea_id', authenticate, async (req, res) => {
         console.error(error);
         res.status(500).json({ message: 'Internal server error' });
     }
+});
+
+
+concept.get('/concept_categories/:business_idea_id', authenticate, async(req, res)=>{
+
+    try{
+        let {business_idea_id} = req.params;
+        business_idea_id = parseInt(business_idea_id, 10);
+
+
+        const [categories] = await connection.query(
+                `SELECT 
+                    Concept.concept_id, 
+                    Concept_Categories.concept_cat_id, 
+                    Concept_Categories.category_name
+                FROM Concept
+                JOIN Concept_Categories_Conncect ON Concept.concept_id = Concept_Categories_Conncect.concept_id
+                JOIN Concept_Categories ON Concept_Categories_Conncect.concept_cat_id = Concept_Categories.concept_cat_id
+                WHERE Concept.business_idea_id = ?;`, [business_idea_id]);
+
+        return res.json({
+            "categories": categories,
+            business_idea_id: business_idea_id
+        });
+
+
+    }catch(error){
+        console.error("Error fetching concept categories:", error);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+
+
+
+
 });
 
 
