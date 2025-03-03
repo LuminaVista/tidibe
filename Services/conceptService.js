@@ -1,5 +1,5 @@
 async function createConcept(connection, businessIdeaId) {
-    try{
+    try {
 
         // create the concept table
         const sql = 'INSERT INTO Concept (business_idea_id, progress) VALUES (?, ?)';
@@ -26,12 +26,10 @@ async function createConcept(connection, businessIdeaId) {
         console.log(`Concept created successfully with ID: ${conceptId}`);
         return conceptId;
 
-    }catch (error) {
+    } catch (error) {
         console.error(`Concept creation error for business idea ${businessIdeaId}:`, error);
         throw error; // Re-throw to be handled by the caller
     }
 }
-
-
 
 export { createConcept }
