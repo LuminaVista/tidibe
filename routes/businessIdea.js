@@ -141,6 +141,43 @@ businessIdea.get('/:id', authenticate, async (req, res) => {
     }
 });
 
+// activeness of the idea:
+businessIdea.put("/toggleStatus/:business_idea_id", authenticate, async(req, res) =>{
+
+    try{
+
+        const user_id = req.user.user_id;
+        let { business_idea_id } = req.params;
+        business_idea_id = parseInt(business_idea_id, 10);
+
+        // Fetch the current isActive status of the business idea
+        const fetchSql = 'SELECT isActive FROM Business_Ideas WHERE user_id = ? AND business_idea_id = ?';
+        const [rows] = await connection.execute(fetchSql, [user_id, business_idea_id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Business idea not found or unauthorized.' });
+        }
+
+        // Toggle the isActive status
+        const newStatus = rows[0].isActive ? 0 : 1;
+
+        // Update the database with the new status
+        const updateSql = 'UPDATE Business_Ideas SET isActive = ? WHERE user_id = ? AND business_idea_id = ?';
+        await connection.execute(updateSql, [newStatus, user_id, business_idea_id]);
+
+        res.status(200).json({
+            message: 'Business Idea status updated successfully.'
+        });
+
+    }catch(error){
+        console.error(error);
+        res.status(500).json({ error: 'Error in toggle the ideaStatus' });
+    }
+
+
+
+});
+
 
 
 
