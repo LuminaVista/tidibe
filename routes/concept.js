@@ -291,6 +291,15 @@ concept.put('/task/edit/:business_idea_id/:task_id', authenticate, async(req, re
             [business_idea_id, task_id]
         );
 
+        // Get concept_id from the task
+        const concept_id = task[0].concept_id;
+        // Update Concept Progress
+        await updateConceptProgress(concept_id);
+        // Update Business Stage Progress
+        await updateBusinessStageProgress(business_idea_id);
+        // Update Business Idea Progress
+        await updateBusinessIdeaProgress(business_idea_id);
+
         return res.status(200).json({ 
             task_id: task_id,
             message: "Task marked as complete successfully" 
@@ -314,7 +323,7 @@ concept.get('/concept_categories/:business_idea_id', authenticate, async (req, r
 
         const [categories] = await connection.query(
             `SELECT 
-                    Concept.concept_id, 
+                    Concept.concept_id,
                     Concept_Categories.concept_cat_id, 
                     Concept_Categories.category_name
                 FROM Concept
@@ -322,7 +331,11 @@ concept.get('/concept_categories/:business_idea_id', authenticate, async (req, r
                 JOIN Concept_Categories ON Concept_Categories_Conncect.concept_cat_id = Concept_Categories.concept_cat_id
                 WHERE Concept.business_idea_id = ?;`, [business_idea_id]);
 
+        const [progress] = await connection.query(
+            `select progress from Concept where business_idea_id = ?`, [business_idea_id]
+        );
         return res.json({
+            "progress": progress[0].progress,
             "categories": categories,
             business_idea_id: business_idea_id
         });
@@ -335,7 +348,70 @@ concept.get('/concept_categories/:business_idea_id', authenticate, async (req, r
 });
 
 
+// helper
+/*
+{todo: Take these functions below and put them in the conceptService File}
+*/
+// Function to update Concept progress
+async function updateConceptProgress(concept_id) {
+    const [[{ total_tasks }]] = await connection.execute(
+        `SELECT COUNT(*) AS total_tasks FROM Concept_Tasks WHERE concept_id = ?;`,
+        [concept_id]
+    );
 
+    const [[{ completed_tasks }]] = await connection.execute(
+        `SELECT COUNT(*) AS completed_tasks FROM Concept_Tasks WHERE concept_id = ? AND task_status = 1;`,
+        [concept_id]
+    );
+
+    const progress = total_tasks > 0 ? (completed_tasks / total_tasks) * 100 : 0;
+
+    await connection.execute(
+        `UPDATE Concept SET progress = ? WHERE concept_id = ?;`,
+        [progress, concept_id]
+    );
+}
+
+// Function to update Business Stage progress
+async function updateBusinessStageProgress(business_idea_id) {
+    const [concepts] = await connection.execute(
+        `SELECT concept_id FROM Concept WHERE business_idea_id = ?;`,
+        [business_idea_id]
+    );
+
+    if (concepts.length === 0) return;
+
+    let totalProgress = 0;
+    for (const concept of concepts) {
+        const [[{ progress }]] = await connection.execute(
+            `SELECT progress FROM Concept WHERE concept_id = ?;`,
+            [concept.concept_id]
+        );
+        totalProgress += progress;
+    }
+
+    const avgProgress = totalProgress / concepts.length;
+
+    // Update Business_Stages table for stage_id = 1 (Concept Stage)
+    await connection.execute(
+        `UPDATE Business_Stages SET progress = ? WHERE business_idea_id = ? AND stage_id = 1;`,
+        [avgProgress, business_idea_id]
+    );
+}
+
+
+// Function to update Business Idea progress
+async function updateBusinessIdeaProgress(business_idea_id) {
+    const [[{ avg_stage_progress }]] = await connection.execute(
+        `SELECT AVG(progress) AS avg_stage_progress FROM Business_Stages WHERE business_idea_id = ?;`,
+        [business_idea_id]
+    );
+
+    await connection.execute(
+        `UPDATE Business_Ideas SET idea_progress = ? WHERE business_idea_id = ?;`,
+        [avg_stage_progress, business_idea_id]
+    );
+}
 
 
 export { concept }
