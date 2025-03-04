@@ -260,6 +260,44 @@ concept.get('/ai/task/generate/:business_idea_id', authenticate, async (req, res
     }
 });
 
+// edit task status 
+concept.put('/task/edit/:business_idea_id/:task_id', authenticate, async(req, res) =>{
+
+    try{
+
+        let { business_idea_id, task_id } = req.params;
+        business_idea_id = parseInt(business_idea_id, 10);
+        task_id = parseInt(task_id, 10);
+        const userId = req.user.user_id;
+
+        // Check if the task exists
+        const [task] = await connection.execute(
+            `SELECT * FROM Concept_Tasks WHERE business_idea_id = ? AND concept_task_id = ?;`,
+            [business_idea_id, task_id]
+        );
+
+        if (task.length === 0) {
+            return res.status(404).json({ message: "Task not found" });
+        }
+
+        // Update task status to 'complete' (1)
+        await connection.execute(
+            `UPDATE Concept_Tasks SET task_status = 1 WHERE business_idea_id = ? AND concept_task_id = ?;`,
+            [business_idea_id, task_id]
+        );
+
+        return res.status(200).json({ 
+            task_id: task_id,
+            message: "Task marked as complete successfully" 
+        });
+
+
+    }catch(error){
+        console.error("Task Edit Error:", error);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+
+});
 
 
 concept.get('/concept_categories/:business_idea_id', authenticate, async (req, res) => {
