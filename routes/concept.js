@@ -248,10 +248,15 @@ concept.get('/ai/task/generate/:business_idea_id', authenticate, async (req, res
             });
         }
 
+        // updated response format
         return res.status(200).json({
             business_idea_id: business_idea_id,
             concept_id: conceptId,
-            tasks: insertedTasks
+            tasks: insertedTasks.map(task => ({
+                id: task.id,
+                task_description: task.task_description,
+                task_status: task.task_status ? 1 : 0 // Convert boolean to int (0 or 1)
+            }))
         });
 
     } catch (error) {
