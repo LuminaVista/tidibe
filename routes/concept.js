@@ -265,6 +265,64 @@ concept.get('/ai/task/generate/:business_idea_id', authenticate, async (req, res
     }
 });
 
+// user generated task: add task
+concept.post("/task/add/:business_idea_id", authenticate, async(req,res)=>{
+    try{
+
+        let { business_idea_id } = req.params;
+        business_idea_id = parseInt(business_idea_id, 10);
+        const { task_description } = req.body; // User provides only task_description
+        const userId = req.user.user_id;
+
+        // Validate input
+        if (!task_description || task_description.trim() === "") {
+            return res.status(400).json({ message: "Task description is required." });
+        }
+
+        // Check if the business idea exists
+        const [businessIdeas] = await connection.execute(
+            `SELECT * FROM Business_Ideas WHERE business_idea_id = ?;`,
+            [business_idea_id]
+        );
+        if (businessIdeas.length === 0) {
+            return res.status(404).json({ message: "No business idea found for the given business_idea_id." });
+        }
+
+        // Fetch the concept_id associated with the given business_idea_id
+        const [concepts] = await connection.execute(
+            `SELECT concept_id FROM Concept WHERE business_idea_id = ?;`,
+            [business_idea_id]
+        );
+        if (concepts.length === 0) {
+            return res.status(404).json({ message: "No concept found for the given business_idea_id." });
+        }
+        const conceptId = concepts[0].concept_id;
+
+        // Insert the user-generated task into the database
+        const [result] = await connection.execute(
+            `INSERT INTO Concept_Tasks (concept_id, business_idea_id, task_description, task_status) 
+             VALUES (?, ?, ?, FALSE);`,
+            [conceptId, business_idea_id, task_description]
+        );
+
+        // Return the newly added task
+        return res.status(201).json({
+            message: "Task added successfully.",
+            task: {
+                id: result.insertId,
+                concept_id: conceptId,
+                business_idea_id: business_idea_id,
+                task_description: task_description,
+                task_status: 0 // Default status is 0 (incomplete)
+            }
+        });
+
+    }catch(error){
+        console.error("Error adding user-generated task:", error);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
 // edit task status 
 concept.put('/task/edit/:business_idea_id/:task_id', authenticate, async(req, res) =>{
 
@@ -346,6 +404,9 @@ concept.get('/concept_categories/:business_idea_id', authenticate, async (req, r
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
+
+
 
 
 // helper
