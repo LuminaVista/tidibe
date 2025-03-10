@@ -71,10 +71,6 @@ concept.get('/ai/answer/:business_idea_id/:concept_cat_id', authenticate, async 
             });
         }
 
-
-
-
-
         // 4. If no answers exist, get questions and generate new answers
         const [questions] = await connection.execute(
             `SELECT concept_question_id, question FROM Concept_Questions WHERE concept_cat_id = ?`,
@@ -385,8 +381,8 @@ concept.get('/concept_categories/:business_idea_id', authenticate, async (req, r
                     Concept_Categories.concept_cat_id, 
                     Concept_Categories.category_name
                 FROM Concept
-                JOIN Concept_Categories_Conncect ON Concept.concept_id = Concept_Categories_Conncect.concept_id
-                JOIN Concept_Categories ON Concept_Categories_Conncect.concept_cat_id = Concept_Categories.concept_cat_id
+                JOIN Concept_Categories_Connect ON Concept.concept_id = Concept_Categories_Connect.concept_id
+                JOIN Concept_Categories ON Concept_Categories_Connect.concept_cat_id = Concept_Categories.concept_cat_id
                 WHERE Concept.business_idea_id = ?;`, [business_idea_id]);
 
         const [progress] = await connection.query(

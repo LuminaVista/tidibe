@@ -17,7 +17,7 @@ async function createConcept(connection, businessIdeaId) {
 
         // Step 3: Insert the mappings into Concept_Categories_Conncect
         if (categories.length > 0) {
-            const connectSql = `INSERT INTO Concept_Categories_Conncect (concept_id, concept_cat_id) VALUES ?`;
+            const connectSql = `INSERT INTO Concept_Categories_Connect (concept_id, concept_cat_id) VALUES ?`;
             const connectValues = categories.map(category => [conceptId, category.concept_cat_id]);
 
             await connection.query(connectSql, [connectValues]); // Batch insert
