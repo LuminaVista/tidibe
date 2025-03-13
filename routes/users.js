@@ -10,16 +10,9 @@ dotenv.config();
 const users = express.Router();
 
 // procted
-users.get('/test', authenticate, async(req, res)=>{
-    // Extract user information from req.user
-    const userId = req.user.user_id;
-    const userEmail = req.user.email;
-
-    // Send a response with the extracted information
+users.get('/test', async(req, res)=>{
     res.json({
-        message: "GET API working",
-        userId,
-        userEmail
+        message: "GET API working"
     });
 
 });
@@ -35,6 +28,8 @@ users.get('/all', async(req, res)=>{
         }
         res.status(200).json(results);
       });
+    
+    
 
 });
 
