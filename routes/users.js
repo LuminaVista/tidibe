@@ -18,20 +18,20 @@ users.get('/test', async(req, res)=>{
 });
 
 // get all the users - test purpose
-users.get('/all', async(req, res)=>{
-    const query = 'SELECT * FROM Users'; 
+// users.get('/all', async(req, res)=>{
+//     const query = 'SELECT * FROM Users'; 
 
-    connection.query(query, (err, results) => {
-        if (err) {
-          console.error('Error executing query:', err.message);
-          return res.status(500).send('Database query failed');
-        }
-        res.status(200).json(results);
-      });
+//     connection.query(query, (err, results) => {
+//         if (err) {
+//           console.error('Error executing query:', err.message);
+//           return res.status(500).send('Database query failed');
+//         }
+//         res.status(200).json(results);
+//       });
     
     
 
-});
+// });
 
 // register user
 users.post('/register', async (req, res) => {

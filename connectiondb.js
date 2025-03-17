@@ -10,6 +10,11 @@ const connection = await mysql.createConnection({
     password: process.env.DB_PASSWORD, 
     database: process.env.DB_DATABASE, 
     port: process.env.DB_PORT, 
+    connectTimeout: 10000, // Increase timeout
+    multipleStatements: true,
+    waitForConnections: true,
+    queueLimit: 0,
+    reconnect: true, // Ensure reconnection
 });
 
 // Connect to the database
