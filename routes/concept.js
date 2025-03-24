@@ -1,5 +1,5 @@
 import express from 'express';
-import connection from '../connectiondb.js';
+import { pool } from '../connectiondb.js';
 import authenticate from '../middlewares/authenticate.js';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
@@ -10,17 +10,20 @@ dotenv.config();
 const concept = express.Router();
 
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY // Ensure you have your API key set in environment variables
+    apiKey: process.env.OPENAI_API_KEY
 });
 
-
-
 concept.get('/ai/answer/:business_idea_id/:concept_cat_id', authenticate, async (req, res) => {
+
+    let connection;
 
     try {
         let { business_idea_id, concept_cat_id } = req.params;
         const userId = req.user.user_id;
         concept_cat_id = parseInt(req.params.concept_cat_id, 10);
+
+        // Get a connection from the pool
+        connection = await pool.getConnection();
 
         // get the category name
         const [category_name] = await connection.execute(
@@ -129,15 +132,26 @@ concept.get('/ai/answer/:business_idea_id/:concept_cat_id', authenticate, async 
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Internal server error' });
+    } finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
     }
 });
 
 // AI Task generation
 concept.get('/ai/task/generate/:business_idea_id', authenticate, async (req, res) => {
+
+    let connection;
+
     try {
         let { business_idea_id } = req.params;
         business_idea_id = parseInt(business_idea_id, 10);
         const userId = req.user.user_id;
+
+        // Get a connection from the pool
+        connection = await pool.getConnection();
 
         // Get the business idea details
         const [businessIdeas] = await connection.execute(
@@ -221,7 +235,7 @@ concept.get('/ai/task/generate/:business_idea_id', authenticate, async (req, res
         });
 
         let generated_task = ai_response.choices[0].message.content;
-        
+
         // Convert AI response into task list
         let taskList = generated_task.split("\n")
             .map(task => task.replace("- ", "").trim())
@@ -258,17 +272,28 @@ concept.get('/ai/task/generate/:business_idea_id', authenticate, async (req, res
     } catch (error) {
         console.error("Error generating AI task:", error);
         return res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
     }
 });
 
 // user generated task: add task
-concept.post("/task/add/:business_idea_id", authenticate, async(req,res)=>{
-    try{
+concept.post("/task/add/:business_idea_id", authenticate, async (req, res) => {
+
+    let connection;
+
+    try {
 
         let { business_idea_id } = req.params;
         business_idea_id = parseInt(business_idea_id, 10);
         const { task_description } = req.body; // User provides only task_description
         const userId = req.user.user_id;
+
+        // Get a connection from the pool
+        connection = await pool.getConnection();
 
         // Validate input
         if (!task_description || task_description.trim() === "") {
@@ -313,21 +338,31 @@ concept.post("/task/add/:business_idea_id", authenticate, async(req,res)=>{
             }
         });
 
-    }catch(error){
+    } catch (error) {
         console.error("Error adding user-generated task:", error);
         return res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
     }
 });
 
 // edit task status 
-concept.put('/task/edit/:business_idea_id/:task_id', authenticate, async(req, res) =>{
+concept.put('/task/edit/:business_idea_id/:task_id', authenticate, async (req, res) => {
 
-    try{
+    let connection;
+
+    try {
 
         let { business_idea_id, task_id } = req.params;
         business_idea_id = parseInt(business_idea_id, 10);
         task_id = parseInt(task_id, 10);
         const userId = req.user.user_id;
+
+        // Get a connection from the pool
+        connection = await pool.getConnection();
 
         // Check if the task exists
         const [task] = await connection.execute(
@@ -354,15 +389,20 @@ concept.put('/task/edit/:business_idea_id/:task_id', authenticate, async(req, re
         // Update Business Idea Progress
         await updateBusinessIdeaProgress(business_idea_id);
 
-        return res.status(200).json({ 
+        return res.status(200).json({
             task_id: task_id,
-            message: "Task marked as complete successfully" 
+            message: "Task marked as complete successfully"
         });
 
 
-    }catch(error){
+    } catch (error) {
         console.error("Task Edit Error:", error);
         return res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
     }
 
 });
@@ -370,7 +410,13 @@ concept.put('/task/edit/:business_idea_id/:task_id', authenticate, async(req, re
 
 concept.get('/concept_categories/:business_idea_id', authenticate, async (req, res) => {
 
+    let connection;
+
     try {
+
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+
         let { business_idea_id } = req.params;
         business_idea_id = parseInt(business_idea_id, 10);
 
@@ -398,6 +444,11 @@ concept.get('/concept_categories/:business_idea_id', authenticate, async (req, r
     } catch (error) {
         console.error("Error fetching concept categories:", error);
         return res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
     }
 });
 
@@ -411,63 +462,113 @@ concept.get('/concept_categories/:business_idea_id', authenticate, async (req, r
 */
 // Function to update Concept progress
 async function updateConceptProgress(concept_id) {
-    const [[{ total_tasks }]] = await connection.execute(
-        `SELECT COUNT(*) AS total_tasks FROM Concept_Tasks WHERE concept_id = ?;`,
-        [concept_id]
-    );
 
-    const [[{ completed_tasks }]] = await connection.execute(
-        `SELECT COUNT(*) AS completed_tasks FROM Concept_Tasks WHERE concept_id = ? AND task_status = 1;`,
-        [concept_id]
-    );
+    let connection;
 
-    const progress = total_tasks > 0 ? (completed_tasks / total_tasks) * 100 : 0;
+    try {
 
-    await connection.execute(
-        `UPDATE Concept SET progress = ? WHERE concept_id = ?;`,
-        [progress, concept_id]
-    );
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+
+        const [[{ total_tasks }]] = await connection.execute(
+            `SELECT COUNT(*) AS total_tasks FROM Concept_Tasks WHERE concept_id = ?;`,
+            [concept_id]
+        );
+
+        const [[{ completed_tasks }]] = await connection.execute(
+            `SELECT COUNT(*) AS completed_tasks FROM Concept_Tasks WHERE concept_id = ? AND task_status = 1;`,
+            [concept_id]
+        );
+
+        const progress = total_tasks > 0 ? (completed_tasks / total_tasks) * 100 : 0;
+
+        await connection.execute(
+            `UPDATE Concept SET progress = ? WHERE concept_id = ?;`,
+            [progress, concept_id]
+        );
+    } catch (error) {
+        throw error;
+    } finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
+    }
 }
 
 // Function to update Business Stage progress
 async function updateBusinessStageProgress(business_idea_id) {
-    const [concepts] = await connection.execute(
-        `SELECT concept_id FROM Concept WHERE business_idea_id = ?;`,
-        [business_idea_id]
-    );
 
-    if (concepts.length === 0) return;
+    let connection;
 
-    let totalProgress = 0;
-    for (const concept of concepts) {
-        const [[{ progress }]] = await connection.execute(
-            `SELECT progress FROM Concept WHERE concept_id = ?;`,
-            [concept.concept_id]
+    try {
+
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+
+        const [concepts] = await connection.execute(
+            `SELECT concept_id FROM Concept WHERE business_idea_id = ?;`,
+            [business_idea_id]
         );
-        totalProgress += progress;
+
+        if (concepts.length === 0) return;
+
+        let totalProgress = 0;
+        for (const concept of concepts) {
+            const [[{ progress }]] = await connection.execute(
+                `SELECT progress FROM Concept WHERE concept_id = ?;`,
+                [concept.concept_id]
+            );
+            totalProgress += progress;
+        }
+
+        const avgProgress = totalProgress / concepts.length;
+
+        // Update Business_Stages table for stage_id = 1 (Concept Stage)
+        await connection.execute(
+            `UPDATE Business_Stages SET progress = ? WHERE business_idea_id = ? AND stage_id = 1;`,
+            [avgProgress, business_idea_id]
+        );
+    } catch (error) {
+        throw error;
+    } finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
     }
-
-    const avgProgress = totalProgress / concepts.length;
-
-    // Update Business_Stages table for stage_id = 1 (Concept Stage)
-    await connection.execute(
-        `UPDATE Business_Stages SET progress = ? WHERE business_idea_id = ? AND stage_id = 1;`,
-        [avgProgress, business_idea_id]
-    );
 }
 
 
 // Function to update Business Idea progress
 async function updateBusinessIdeaProgress(business_idea_id) {
-    const [[{ avg_stage_progress }]] = await connection.execute(
-        `SELECT AVG(progress) AS avg_stage_progress FROM Business_Stages WHERE business_idea_id = ?;`,
-        [business_idea_id]
-    );
 
-    await connection.execute(
-        `UPDATE Business_Ideas SET idea_progress = ? WHERE business_idea_id = ?;`,
-        [avg_stage_progress, business_idea_id]
-    );
+    let connection;
+
+    try {
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+
+        const [[{ avg_stage_progress }]] = await connection.execute(
+            `SELECT AVG(progress) AS avg_stage_progress FROM Business_Stages WHERE business_idea_id = ?;`,
+            [business_idea_id]
+        );
+
+        await connection.execute(
+            `UPDATE Business_Ideas SET idea_progress = ? WHERE business_idea_id = ?;`,
+            [avg_stage_progress, business_idea_id]
+        );
+    } catch (error) {
+        throw error;
+    } finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
+    }
+
+
+
 }
 
 

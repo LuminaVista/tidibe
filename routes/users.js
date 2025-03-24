@@ -1,5 +1,5 @@
 import express from 'express';
-import connection from '../connectiondb.js'; 
+import { pool } from '../connectiondb.js'; 
 import authenticate from '../middlewares/authenticate.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -36,6 +36,7 @@ users.get('/test', async(req, res)=>{
 // register user
 users.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
+    let connection;
 
     try {
 
@@ -48,6 +49,8 @@ users.post('/register', async (req, res) => {
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+        // Get a connection from the pool
+        connection = await pool.getConnection();
 
         // Insert the user into the database
         const sql = 'INSERT INTO Users (username, email, password) VALUES (?, ?, ?)';
@@ -59,14 +62,24 @@ users.post('/register', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error registering user.' });
+    } finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
     }
 });
 
 // login user
 users.post('/login', async(req, res)=>{
     const {email, password} = req.body;
+    let connection;
 
     try{
+
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+
         // Check if the user exists in the database
         const sql = 'SELECT * FROM Users WHERE email = ?';
         const [rows] = await connection.execute(sql, [email]);
@@ -99,6 +112,12 @@ users.post('/login', async(req, res)=>{
     }catch(error){
         console.error(error);
         res.status(500).json({ error: 'Error logging in.' });
+    }
+    finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
     }
 })
 

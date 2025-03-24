@@ -1,5 +1,5 @@
 import express from 'express';
-import connection from '../connectiondb.js';
+import { pool } from '../connectiondb.js';
 import authenticate from '../middlewares/authenticate.js';
 import dotenv from 'dotenv';
 
@@ -37,10 +37,14 @@ businessIdea.post('/create', authenticate, async (req, res) => {
     // Extract user information from req.user
     const userId = req.user.user_id;
     const userEmail = req.user.email;
+    let connection;
 
     const { idea_name, idea_foundation, problem_statement, unique_solution, target_location } = req.body;
 
     try {
+
+        // Get a connection from the pool
+        connection = await pool.getConnection();
 
         await connection.beginTransaction();
 
@@ -81,9 +85,18 @@ businessIdea.post('/create', authenticate, async (req, res) => {
             success: true
         });
     } catch (error) {
+        // Rollback in case of error
+        if (connection) {
+            await connection.rollback();
+        }
         console.error(error);
         res.status(500).json({ error: 'BusinessIdea Creation Failed.' });
         return
+    } finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
     }
 });
 
@@ -91,8 +104,11 @@ businessIdea.post('/create', authenticate, async (req, res) => {
 businessIdea.get('/all', authenticate, async (req, res) => {
     // Extract user ID from authenticated request
     const userId = req.user.user_id;
+    let connection;
 
     try {
+        // Get a connection from the pool
+        connection = await pool.getConnection();
         // Query to fetch business ideas for the given user
         const sql = 'SELECT * FROM Business_Ideas WHERE user_id = ?';
         const [rows] = await connection.execute(sql, [userId]);
@@ -104,6 +120,11 @@ businessIdea.get('/all', authenticate, async (req, res) => {
         console.error(error);
         res.status(500).json({ error: 'Error retrieving business ideas.' });
         return
+    } finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
     }
 });
 
@@ -111,8 +132,12 @@ businessIdea.get('/all', authenticate, async (req, res) => {
 businessIdea.get('/:id', authenticate, async (req, res) => {
     const user_id = req.user.user_id;  // Extract authenticated user ID
     const business_idea_id = req.params.id; // Extract business idea ID from URL
+    let connection;
 
     try {
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+
         // Query to fetch the specific business idea for the authenticated user
         const sql = 'SELECT * FROM Business_Ideas WHERE user_id = ? AND business_idea_id = ?';
         const [rows] = await connection.execute(sql, [user_id, business_idea_id]);
@@ -138,13 +163,22 @@ businessIdea.get('/:id', authenticate, async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error retrieving business idea details and stages.' });
+    } finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
     }
 });
 
 // activeness of the idea:
 businessIdea.put("/toggleStatus/:business_idea_id", authenticate, async(req, res) =>{
+    let connection;
 
     try{
+
+        // Get a connection from the pool
+        connection = await pool.getConnection();
 
         const user_id = req.user.user_id;
         let { business_idea_id } = req.params;
@@ -172,10 +206,12 @@ businessIdea.put("/toggleStatus/:business_idea_id", authenticate, async(req, res
     }catch(error){
         console.error(error);
         res.status(500).json({ error: 'Error in toggle the ideaStatus' });
+    } finally {
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
     }
-
-
-
 });
 
 

@@ -4,21 +4,29 @@ import dotenv from 'dotenv';
 dotenv.config(); 
 
 // Create connection
-const connection = await mysql.createConnection({
+const pool = mysql.createPool({
     host: process.env.DB_HOST, 
     user: process.env.DB_USER, 
     password: process.env.DB_PASSWORD, 
     database: process.env.DB_DATABASE, 
     port: process.env.DB_PORT, 
     connectTimeout: 10000, // Increase timeout
-    multipleStatements: true,
     waitForConnections: true,
     queueLimit: 0,
-    reconnect: true, // Ensure reconnection
+    multipleStatements: true,
+    connectionLimit: 10, // Adjust based on your need, it limits the number of connections in the pool
+    reconnect: true, // Ensure reconnection (this may not be directly supported, see alternative solutions below)
 });
 
-// Connect to the database
-console.log('Connected to the RDS database!');
+// Use the pool to get a connection
+async function getConnection() {
+    try {
+        const connection = await pool.getConnection();
+        return connection;
+    } catch (error) {
+        console.error('Failed to get connection:', error);
+    }
+}
 
 // Export the connection
-export default connection;
+export { pool, getConnection };
