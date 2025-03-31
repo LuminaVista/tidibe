@@ -47,7 +47,7 @@ resetpassword.post("/forgot-password", async (req, res) => {
         // Step 5: Send email
         await sendResetEmail(user.email, resetLink);
 
-        return res.status(200).json({ message: "If email exists, reset link has been sent." });
+        return res.status(200).json({ message: "Please check your email." });
 
     } catch (error) {
         console.error("Error in forgot-password:", error);
@@ -112,7 +112,7 @@ resetpassword.post("/reset-password", async (req, res) => {
             [hashedPassword, user.user_id]
         );
 
-        return res.status(200).json({ message: "Password reset successful." });
+        return res.status(200).json({ message: "Password reset successful. Please return to your app." });
 
     } catch (err) {
         console.error("Reset password error:", err);
