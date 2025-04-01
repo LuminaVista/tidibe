@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 // services
 import { createBusinessStages } from '../Services/stageService.js';
 import { createConcept } from '../Services/conceptService.js';
+import { createResearch } from '../Services/createResearch.js';
 
 dotenv.config();
 const businessIdea = express.Router();
@@ -72,6 +73,14 @@ businessIdea.post('/create', authenticate, async (req, res) => {
         try {
             await createConcept(connection, businessIdeaId);
         } catch (conceptTableCreationError) {
+            // Re-throw with more context
+            throw new Error(`Failed to create Concept Stage: ${conceptTableCreationError.message}`);
+        }
+
+        // crear Research Table
+        try {
+            await createResearch(connection, businessIdeaId);
+        } catch (researchTableCreationError) {
             // Re-throw with more context
             throw new Error(`Failed to create Concept Stage: ${conceptTableCreationError.message}`);
         }
