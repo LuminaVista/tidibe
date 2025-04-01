@@ -112,7 +112,7 @@ resetpassword.post("/reset-password", async (req, res) => {
             [hashedPassword, user.user_id]
         );
 
-        return res.status(200).json({ message: "Password reset successful. Please return to your app." });
+        return res.status(200).json({ message: "Password reset successful. Please login to the app with new password." });
 
     } catch (err) {
         console.error("Reset password error:", err);
