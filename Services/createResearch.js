@@ -22,7 +22,7 @@ async function createResearch(connection, businessIdeaId) {
         }
 
         console.log(`Research created successfully with ID: ${researchtId}`);
-        return conceptId;
+        return researchtId;
 
     } catch (error) {
         console.error(`Research creation error for business idea ${businessIdeaId}:`, error);

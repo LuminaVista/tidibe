@@ -82,7 +82,7 @@ businessIdea.post('/create', authenticate, async (req, res) => {
             await createResearch(connection, businessIdeaId);
         } catch (researchTableCreationError) {
             // Re-throw with more context
-            throw new Error(`Failed to create Concept Stage: ${conceptTableCreationError.message}`);
+            throw new Error(`Failed to create Concept Stage: ${researchTableCreationError.message}`);
         }
 
         // Commit the transaction
