@@ -566,9 +566,6 @@ async function updateBusinessIdeaProgress(business_idea_id) {
             connection.release();
         }
     }
-
-
-
 }
 
 
