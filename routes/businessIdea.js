@@ -8,6 +8,7 @@ import { createBusinessStages } from '../Services/stageService.js';
 import { createConcept } from '../Services/conceptService.js';
 import { createResearch } from '../Services/createResearch.js';
 import { createMarketing } from '../Services/createMarketing.js';
+import { createBudget } from '../Services/createBudget.js';
 
 dotenv.config();
 const businessIdea = express.Router();
@@ -92,6 +93,14 @@ businessIdea.post('/create', authenticate, async (req, res) => {
         } catch (marketingTableCreationError) {
             // Re-throw with more context
             throw new Error(`Failed to create Concept Stage: ${marketingTableCreationError.message}`);
+        }
+
+        // Create Budget table
+        try {
+            await createBudget(connection, businessIdeaId);
+        } catch (budgetTableCreationError) {
+            // Re-throw with more context
+            throw new Error(`Failed to create Concept Stage: ${budgetTableCreationError.message}`);
         }
 
         // Commit the transaction
