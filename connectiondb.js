@@ -15,7 +15,6 @@ const pool = mysql.createPool({
     queueLimit: 0,
     multipleStatements: true,
     connectionLimit: 10, // Adjust based on your need, it limits the number of connections in the pool
-    reconnect: true, // Ensure reconnection (this may not be directly supported, see alternative solutions below)
 });
 
 // Use the pool to get a connection
