@@ -45,12 +45,20 @@ users.post('/register', async (req, res) => {
             return res.status(500).json({ error: 'Password must be greater than 8 characters.' });
         }
 
-        // Hash the password
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-
         // Get a connection from the pool
         connection = await pool.getConnection();
+
+        // Check if the email already exists
+        const checkEmailSQL = 'SELECT * FROM Users WHERE email = ?';
+        const [existingUsers] = await connection.execute(checkEmailSQL, [email]);
+
+        if (existingUsers.length > 0) {
+            return res.status(409).json({ error: 'Email is already registered.' }); // 409 Conflict
+        }
+
+        // Hash the password
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);        
 
         // Insert the user into the database
         const sql = 'INSERT INTO Users (username, email, password) VALUES (?, ?, ?)';
@@ -104,7 +112,7 @@ users.post('/login', async(req, res)=>{
         const token = jwt.sign(
             { id: user.user_id, email: user.email }, // Payload
             process.env.SECRET_KEY, // Secret key
-            { expiresIn: '1h' } // Token expiry
+            { expiresIn: '30d' } // Token expiry
         );
 
         res.status(200).json({ message: 'Login successful', token });
