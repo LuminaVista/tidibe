@@ -7,30 +7,32 @@ import { businessIdea } from './businessIdea.js';
 
 
 dotenv.config();
-const envc = express.Router();
+const brand = express.Router();
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
 
-// AI answer generation
-envc.get('/ai/answer/:business_idea_id/:envc_cat_id', authenticate, async (req, res) => {
+
+// brand - AI answer generation
+brand.get('/ai/answer/:business_idea_id/:brand_cat_id', authenticate, async (req, res) => {
 
     let connection;
 
     try {
-        let { business_idea_id, envc_cat_id } = req.params;
+        let { business_idea_id, brand_cat_id } = req.params;
         const userId = req.user.user_id;
-        envc_cat_id = parseInt(req.params.envc_cat_id, 10);
+        brand_cat_id = parseInt(req.params.brand_cat_id, 10);
 
         // Get a connection from the pool
         connection = await pool.getConnection();
 
-        // get the category name - envc
+        // get the category name - brand
         const [category_name] = await connection.execute(
-            `SELECT category_name from Envc_Categories where envc_cat_id = ?`,
-            [envc_cat_id]
+            `SELECT category_name from Brand_Categories where brand_cat_id = ?`,
+            [brand_cat_id]
         );
+
         if (category_name.length === 0) {
             return res.status(404).json({ message: 'No Category Name found' });
         }
@@ -47,23 +49,23 @@ envc.get('/ai/answer/:business_idea_id/:envc_cat_id', authenticate, async (req, 
         }
         const businessIdea = businessIdeas[0];
 
-        // 2. Get the envc_id for the given business_id
-        const [envcs] = await connection.execute(
-            `SELECT envc_id FROM Envc WHERE business_idea_id = ?;`,
+        // 2. Get the brand_id for the given business_id
+        const [brands] = await connection.execute(
+            `SELECT brand_id FROM Brand WHERE business_idea_id = ?;`,
             [business_idea_id]
         );
-        if (envcs.length === 0) {
-            return res.status(404).json({ message: 'No Envc found for the given business_id' });
+        if (brands.length === 0) {
+            return res.status(404).json({ message: 'No Brand found for the given business_id' });
         }
-        const envcId = envcs[0].envc_id;
+        const brandId = brands[0].brand_id;
 
         // 3. Check if answers already exist in the database
         const [existingAnswers] = await connection.execute(
-            `SELECT eq.question, ea.answer, ea.envc_question_id, ea.envc_id, ea.envc_cat_id
-         FROM Envc_Answers ea
-         JOIN Envc_Questions eq ON ea.envc_question_id = eq.envc_question_id
-         WHERE ea.envc_id = ? AND ea.envc_cat_id = ?`,
-            [envcId, envc_cat_id]
+            `SELECT bq.question, ba.answer, ba.brand_question_id, ba.brand_id, ba.brand_cat_id
+         FROM Brand_Answers ba
+         JOIN Brand_Questions bq ON ba.brand_question_id = bq.brand_question_id
+         WHERE ba.brand_id = ? AND ba.brand_cat_id = ?`,
+            [brandId, brand_cat_id]
         );
 
         // If answers exist, return them
@@ -77,8 +79,8 @@ envc.get('/ai/answer/:business_idea_id/:envc_cat_id', authenticate, async (req, 
 
         // 4. If no answers exist, get questions and generate new answers
         const [questions] = await connection.execute(
-            `SELECT envc_question_id, question FROM Envc_Questions WHERE envc_cat_id = ?`,
-            [envc_cat_id]
+            `SELECT brand_question_id, question FROM Brand_Questions WHERE brand_cat_id = ?`,
+            [brand_cat_id]
         );
         if (questions.length === 0) {
             return res.status(404).json({ message: 'No questions found' });
@@ -108,9 +110,9 @@ envc.get('/ai/answer/:business_idea_id/:envc_cat_id', authenticate, async (req, 
             });
             answers.push({
                 question: q.question,
-                envc_question_id: q.envc_question_id,
-                envc_id: envcId,
-                envc_cat_id: envc_cat_id,
+                brand_question_id: q.brand_question_id,
+                brand_id: brandId,
+                brand_cat_id: brand_cat_id,
                 answer: response.choices[0].message.content,
                 userId,
             });
@@ -119,9 +121,9 @@ envc.get('/ai/answer/:business_idea_id/:envc_cat_id', authenticate, async (req, 
         // 6. Store the answers in the database
         for (let answer of answers) {
             await connection.execute(
-                `INSERT INTO Envc_Answers (envc_question_id, envc_id, envc_cat_id, answer)
+                `INSERT INTO Brand_Answers (brand_question_id, brand_id, brand_cat_id, answer)
            VALUES (?, ?, ?, ?);`,
-                [answer.envc_question_id, answer.envc_id, answer.envc_cat_id, answer.answer]
+                [answer.brand_question_id, answer.brand_id, answer.brand_cat_id, answer.answer]
             );
         }
 
@@ -141,8 +143,9 @@ envc.get('/ai/answer/:business_idea_id/:envc_cat_id', authenticate, async (req, 
     }
 });
 
-// AI Task generation
-envc.get('/ai/task/generate/:business_idea_id', authenticate, async (req, res) => {
+
+// brand - AI Task generation
+brand.get('/ai/task/generate/:business_idea_id', authenticate, async (req, res) => {
 
     let connection;
 
@@ -164,42 +167,42 @@ envc.get('/ai/task/generate/:business_idea_id', authenticate, async (req, res) =
         }
         const businessIdea = businessIdeas[0];
 
-        // Get the envc_id for the given business_id
-        const [envcs] = await connection.execute(
-            `SELECT envc_id FROM Envc WHERE business_idea_id = ?;`,
+        // Get the brand_id for the given business_id
+        const [brands] = await connection.execute(
+            `SELECT brand_id FROM Brand WHERE business_idea_id = ?;`,
             [business_idea_id]
         );
-        if (envcs.length === 0) {
-            return res.status(404).json({ message: 'No envcs found for the given business_id' });
+        if (brands.length === 0) {
+            return res.status(404).json({ message: 'No brands found for the given business_id' });
         }
-        const envcId = envcs[0].envc_id;
+        const brandId = brands[0].brand_id;
 
-        // Check if tasks already exist for this envc
+        // Check if tasks already exist for this brand
         const [existingTasks] = await connection.execute(
-            `SELECT envc_task_id, task_description, task_status FROM Envc_Tasks WHERE envc_id = ? AND business_idea_id = ?;`,
-            [envcId, business_idea_id]
+            `SELECT brand_task_id, task_description, task_status FROM Brand_Tasks WHERE brand_id = ? AND business_idea_id = ?;`,
+            [brandId, business_idea_id]
         );
 
         if (existingTasks.length > 0) {
             // Return existing tasks in structured format
             return res.status(200).json({
                 business_idea_id: business_idea_id,
-                envc_id: envcId,
+                brand_id: brandId,
                 tasks: existingTasks.map(task => ({
-                    id: task.envc_task_id,
+                    id: task.brand_task_id,
                     task_description: task.task_description,
                     task_status: task.task_status
                 }))
             });
         }
 
-        // Get all questions and answers for the given envc_id  
+        // Get all questions and answers for the given brand_id  
         const [questionsAndAnswers] = await connection.execute(
-            `SELECT eq.envc_question_id, eq.question, ea.answer  
-             FROM Envc_Questions eq
-             LEFT JOIN Envc_Answers ea ON eq.envc_question_id = ea.envc_question_id  
-             WHERE ea.envc_id = ?;`,
-            [envcId]
+            `SELECT bq.brand_question_id, bq.question, ba.answer  
+             FROM Brand_Questions bq
+             LEFT JOIN Brand_Answers ba ON bq.brand_question_id = ba.brand_question_id  
+             WHERE ba.brand_id = ?;`,
+            [brandId]
         );
 
         if (questionsAndAnswers.length === 0) {
@@ -216,7 +219,7 @@ envc.get('/ai/task/generate/:business_idea_id', authenticate, async (req, res) =
         - Unique solution: ${businessIdea["unique_solution"]}
         - Target location: ${businessIdea["target_location"]}
 
-        Along with the business idea, some business environmental consideration-related questions and answers are provided:
+        Along with the business idea, some business branding-related questions and answers are provided:
 
         - ${questionsAndAnswers.map(q => `Q: ${q.question} A: ${q.answer}`).join("\n")}
 
@@ -247,9 +250,9 @@ envc.get('/ai/task/generate/:business_idea_id', authenticate, async (req, res) =
         // Insert each task into the database and get back the task ID
         for (let task of taskList) {
             const [result] = await connection.execute(
-                `INSERT INTO Envc_Tasks (envc_id, business_idea_id, task_description, task_status) 
+                `INSERT INTO Brand_Tasks (brand_id, business_idea_id, task_description, task_status) 
                  VALUES (?, ?, ?, FALSE)`,
-                [envcId, business_idea_id, task]
+                [brandId, business_idea_id, task]
             );
 
             insertedTasks.push({
@@ -262,7 +265,7 @@ envc.get('/ai/task/generate/:business_idea_id', authenticate, async (req, res) =
         // updated response format
         return res.status(200).json({
             business_idea_id: business_idea_id,
-            envc_id: envcId,
+            brand_id: brandId,
             tasks: insertedTasks.map(task => ({
                 id: task.id,
                 task_description: task.task_description,
@@ -281,8 +284,8 @@ envc.get('/ai/task/generate/:business_idea_id', authenticate, async (req, res) =
     }
 });
 
-// user generated task: add task
-envc.post("/task/add/:business_idea_id", authenticate, async (req, res) => {
+// brand - user generated task: add task
+brand.post("/task/add/:business_idea_id", authenticate, async (req, res) => {
 
     let connection;
 
@@ -310,21 +313,21 @@ envc.post("/task/add/:business_idea_id", authenticate, async (req, res) => {
             return res.status(404).json({ message: "No business idea found for the given business_idea_id." });
         }
 
-        // Fetch the envc_id associated with the given business_idea_id
-        const [envcs] = await connection.execute(
-            `SELECT envc_id FROM Envc WHERE business_idea_id = ?;`,
+        // Fetch the brand_id associated with the given business_idea_id
+        const [brands] = await connection.execute(
+            `SELECT brand_id FROM Brand WHERE business_idea_id = ?;`,
             [business_idea_id]
         );
-        if (envcs.length === 0) {
-            return res.status(404).json({ message: "No envcs found for the given business_idea_id." });
+        if (brands.length === 0) {
+            return res.status(404).json({ message: "No brands found for the given business_idea_id." });
         }
-        const envcId = envcs[0].envc_id;
+        const brandId = brands[0].brand_id;
 
         // Insert the user-generated task into the database
         const [result] = await connection.execute(
-            `INSERT INTO Envc_Tasks (envc_id, business_idea_id, task_description, task_status) 
+            `INSERT INTO Brand_Tasks (brand_id, business_idea_id, task_description, task_status) 
              VALUES (?, ?, ?, FALSE);`,
-            [envcId, business_idea_id, task_description]
+            [brandId, business_idea_id, task_description]
         );
 
         // Return the newly added task
@@ -332,7 +335,7 @@ envc.post("/task/add/:business_idea_id", authenticate, async (req, res) => {
             message: "Task added successfully.",
             task: {
                 id: result.insertId,
-                envc_id: envcId,
+                brand_id: brandId,
                 business_idea_id: business_idea_id,
                 task_description: task_description,
                 task_status: 0 // Default status is 0 (incomplete)
@@ -340,7 +343,7 @@ envc.post("/task/add/:business_idea_id", authenticate, async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Error adding user-generated task - Envc:", error);
+        console.error("Error adding user-generated task - Brand:", error);
         return res.status(500).json({ error: "Internal Server Error" });
     } finally {
         // Always release the connection back to the pool
@@ -350,8 +353,8 @@ envc.post("/task/add/:business_idea_id", authenticate, async (req, res) => {
     }
 });
 
-// edit task status 
-envc.put('/task/edit/:business_idea_id/:task_id', authenticate, async (req, res) => {
+// brand - edit task status 
+brand.put('/task/edit/:business_idea_id/:task_id', authenticate, async (req, res) => {
 
     let connection;
 
@@ -367,7 +370,7 @@ envc.put('/task/edit/:business_idea_id/:task_id', authenticate, async (req, res)
 
         // Check if the task exists
         const [task] = await connection.execute(
-            `SELECT * FROM Envc_Tasks WHERE business_idea_id = ? AND envc_task_id = ?;`,
+            `SELECT * FROM Brand_Tasks WHERE business_idea_id = ? AND brand_task_id = ?;`,
             [business_idea_id, task_id]
         );
 
@@ -377,14 +380,14 @@ envc.put('/task/edit/:business_idea_id/:task_id', authenticate, async (req, res)
 
         // Update task status to 'complete' (1)
         await connection.execute(
-            `UPDATE Envc_Tasks SET task_status = 1 WHERE business_idea_id = ? AND envc_task_id = ?;`,
+            `UPDATE Brand_Tasks SET task_status = 1 WHERE business_idea_id = ? AND brand_task_id = ?;`,
             [business_idea_id, task_id]
         );
 
-        // Get envc_id from the task
-        const envc_id = task[0].envc_id;
-        // Update Envc Progress
-        await updateEnvcProgress(envc_id);
+        // Get brand_id from the task
+        const brand_id = task[0].brand_id;
+        // Update Brand Progress
+        await updateBrandProgress(brand_id);
 
         // Update Business Stage Progress
         await updateBusinessStageProgress(business_idea_id);
@@ -409,8 +412,7 @@ envc.put('/task/edit/:business_idea_id/:task_id', authenticate, async (req, res)
 
 });
 
-
-envc.get('/envc_categories/:business_idea_id', authenticate, async (req, res) => {
+brand.get('/brand_categories/:business_idea_id', authenticate, async (req, res) => {
 
     let connection;
 
@@ -425,16 +427,16 @@ envc.get('/envc_categories/:business_idea_id', authenticate, async (req, res) =>
 
         const [categories] = await connection.query(
             `SELECT 
-                    Envc.envc_id,
-                    Envc_Categories.envc_cat_id, 
-                    Envc_Categories.category_name
-                FROM Envc
-                JOIN Envc_Categories_Connect ON Envc.envc_id = Envc_Categories_Connect.envc_id
-                JOIN Envc_Categories ON Envc_Categories_Connect.envc_cat_id = Envc_Categories.envc_cat_id
-                WHERE Envc.business_idea_id = ?;`, [business_idea_id]);
+                    Brand.brand_id,
+                    Brand_Categories.brand_cat_id, 
+                    Brand_Categories.category_name
+                FROM Brand
+                JOIN Brand_Categories_Connect ON Brand.brand_id = Brand_Categories_Connect.brand_id
+                JOIN Brand_Categories ON Brand_Categories_Connect.brand_cat_id = Brand_Categories.brand_cat_id
+                WHERE Brand.business_idea_id = ?;`, [business_idea_id]);
 
         const [progress] = await connection.query(
-            `select progress from Envc where business_idea_id = ?`, [business_idea_id]
+            `select progress from Brand where business_idea_id = ?`, [business_idea_id]
         );
         return res.json({
             "progress": progress[0].progress,
@@ -444,7 +446,7 @@ envc.get('/envc_categories/:business_idea_id', authenticate, async (req, res) =>
 
 
     } catch (error) {
-        console.error("Error fetching Envc categories:", error);
+        console.error("Error fetching Brand categories:", error);
         return res.status(500).json({ error: "Internal Server Error" });
     } finally {
         // Always release the connection back to the pool
@@ -456,8 +458,9 @@ envc.get('/envc_categories/:business_idea_id', authenticate, async (req, res) =>
 
 
 
+
 // ******** Helper function to update progress **********
-async function updateEnvcProgress(envc_id) {
+async function updateBrandProgress(brand_id) {
 
     let connection;
 
@@ -467,20 +470,20 @@ async function updateEnvcProgress(envc_id) {
         connection = await pool.getConnection();
 
         const [[{ total_tasks }]] = await connection.execute(
-            `SELECT COUNT(*) AS total_tasks FROM Envc_Tasks WHERE envc_id = ?;`,
-            [envc_id]
+            `SELECT COUNT(*) AS total_tasks FROM Brand_Tasks WHERE brand_id = ?;`,
+            [brand_id]
         );
 
         const [[{ completed_tasks }]] = await connection.execute(
-            `SELECT COUNT(*) AS completed_tasks FROM Envc_Tasks WHERE envc_id = ? AND task_status = 1;`,
-            [envc_id]
+            `SELECT COUNT(*) AS completed_tasks FROM Brand_Tasks WHERE brand_id = ? AND task_status = 1;`,
+            [brand_id]
         );
 
         const progress = total_tasks > 0 ? (completed_tasks / total_tasks) * 100 : 0;
 
         await connection.execute(
-            `UPDATE Envc SET progress = ? WHERE envc_id = ?;`,
-            [progress, envc_id]
+            `UPDATE Brand SET progress = ? WHERE brand_id = ?;`,
+            [progress, brand_id]
         );
     } catch (error) {
         throw error;
@@ -503,27 +506,27 @@ async function updateBusinessStageProgress(business_idea_id) {
         // Get a connection from the pool
         connection = await pool.getConnection();
 
-        const [envcs] = await connection.execute(
-            `SELECT envc_id FROM Envc WHERE business_idea_id = ?;`,
+        const [brands] = await connection.execute(
+            `SELECT brand_id FROM Brand WHERE business_idea_id = ?;`,
             [business_idea_id]
         );
 
-        if (envcs.length === 0) return;
+        if (brands.length === 0) return;
 
         let totalProgress = 0;
-        for (const envc of envcs) {
+        for (const brand of brands) {
             const [[{ progress }]] = await connection.execute(
-                `SELECT progress FROM Envc WHERE envc_id = ?;`,
-                [envc.envc_id]
+                `SELECT progress FROM Brand WHERE brand_id = ?;`,
+                [brand.brand_id]
             );
             totalProgress += progress;
         }
 
-        const avgProgress = totalProgress / envcs.length;
+        const avgProgress = totalProgress / brands.length;
 
-        // Update Business_Stages table for stage_id = 6 (Envc Stage)
+        // Update Business_Stages table for stage_id = 3 (Brand Stage)
         await connection.execute(
-            `UPDATE Business_Stages SET progress = ? WHERE business_idea_id = ? AND stage_id = 6;`,
+            `UPDATE Business_Stages SET progress = ? WHERE business_idea_id = ? AND stage_id = 3;`,
             [avgProgress, business_idea_id]
         );
     } catch (error) {
@@ -565,4 +568,4 @@ async function updateBusinessIdeaProgress(business_idea_id) {
     }
 }
 
-export { envc }
+export { brand }
