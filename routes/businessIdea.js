@@ -10,6 +10,7 @@ import { createResearch } from '../Services/createResearch.js';
 import { createMarketing } from '../Services/createMarketing.js';
 import { createBudget } from '../Services/createBudget.js';
 import { createEnvc } from '../Services/createEnvc.js';
+import { createBrand } from '../Services/createBrand.js';
 
 dotenv.config();
 const businessIdea = express.Router();
@@ -110,6 +111,14 @@ businessIdea.post('/create', authenticate, async (req, res) => {
         } catch (envcTableCreationError) {
             // Re-throw with more context
             throw new Error(`Failed to create Concept Stage: ${envcTableCreationError.message}`);
+        }
+
+        // Create Brand table
+        try {
+            await createBrand(connection, businessIdeaId);
+        } catch (brandTableCreationError) {
+            // Re-throw with more context
+            throw new Error(`Failed to create Concept Stage: ${brandTableCreationError.message}`);
         }
 
         // Commit the transaction
