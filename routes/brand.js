@@ -457,6 +457,88 @@ brand.get('/brand_categories/:business_idea_id', authenticate, async (req, res) 
 });
 
 
+// ----------------- AI LOGO Generation --------------------
+brand.post("/ai/logo/:business_idea_id", authenticate, async (req, res) => {
+    let connection;
+
+    try{
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+        let { business_idea_id } = req.params;
+        business_idea_id = parseInt(business_idea_id, 10);
+
+        const { tagline, palette} = req.body;
+
+        if (!tagline || !Array.isArray(palette)) {
+            return res.status(400).json({ error: "Missing tagline or palette array" });
+        }
+        const hexList = palette.join(", ");
+
+        // Get the business idea details
+        const [businessIdeas] = await connection.execute(
+            `SELECT * FROM Business_Ideas WHERE business_idea_id = ?;`,
+            [business_idea_id]
+        );
+        if (businessIdeas.length === 0) {
+            return res.status(404).json({ message: 'No business idea found for the given business_id' });
+        }
+        const businessIdea = businessIdeas[0];
+
+        const prompt = `
+
+            You are a professional senior logo artist. You design logo for the big business and startups.
+            Design a logo that reflects the business. Analyse the business idea first:
+
+            - Business Idea Name: ${businessIdea["idea_name"]}
+            - Idea foundation: ${businessIdea["idea_foundation"]}
+            - Problem statement: ${businessIdea["problem_statement"]}
+            - Unique solution: ${businessIdea["unique_solution"]}
+            - Target location: ${businessIdea["target_location"]}
+
+            Now, analyse the business tagline: ${tagline}
+
+            And Use ONLY these colour pallete given to you.  
+            color pallete: ${hexList}
+
+            THE LOGO MUST NOT CONTAIN:
+            - Any character or writing
+            - Any number or numeric character
+            - Colour Pallete Information
+
+        `;
+        const response = await openai.images.generate({
+            model: "dall-e-3", // or "dall-e-2"
+            prompt,
+            size: "1024x1024",
+            n: 1,
+        });
+
+        const imageUrl = response.data[0].url;
+
+        // save the image url in database
+        await connection.execute(
+            `UPDATE Brand SET img_url = ? WHERE business_idea_id = ?;`,
+            [imageUrl, business_idea_id]
+        );
+
+        return res.json({ 
+            business_idea_id: business_idea_id,
+            image_url : imageUrl
+        });
+
+    }catch(error){
+
+        console.error("Error generating AI-BRANDING-LOGO: Branding", error);
+        return res.status(500).json({ error: "Internal Server Error" });
+
+    }finally{
+        // Always release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
+    }
+});
+
 
 
 // ******** Helper function to update progress **********
