@@ -58,7 +58,7 @@ concept.get('/ai/answer/:business_idea_id/:concept_cat_id', authenticate, async 
 
         // 3. Check if answers already exist in the database
         const [existingAnswers] = await connection.execute(
-            `SELECT cq.question, ca.answer, ca.concept_question_id, ca.concept_id, ca.concept_cat_id
+            `SELECT cq.question, ca.answer, ca.concept_question_id, ca.concept_id, ca.concept_cat_id, ca.concept_answer_id
          FROM Concept_Answers ca
          JOIN Concept_Questions cq ON ca.concept_question_id = cq.concept_question_id
          WHERE ca.concept_id = ? AND ca.concept_cat_id = ?`,
@@ -116,13 +116,22 @@ concept.get('/ai/answer/:business_idea_id/:concept_cat_id', authenticate, async 
         }
 
         // 6. Store the answers in the database
-        for (let answer of answers) {
-            await connection.execute(
+
+        for (let i = 0; i < answers.length; i++) {
+            const [result] = await connection.execute(
                 `INSERT INTO Concept_Answers (concept_question_id, concept_id, concept_cat_id, answer)
            VALUES (?, ?, ?, ?);`,
-                [answer.concept_question_id, answer.concept_id, answer.concept_cat_id, answer.answer]
+                [answers[i].concept_question_id, answers[i].concept_id, answers[i].concept_cat_id, answers[i].answer]
             );
+            answers[i].concept_answer_id = result.insertId;
         }
+        // for (let answer of answers) {
+        //     await connection.execute(
+        //         `INSERT INTO Concept_Answers (concept_question_id, concept_id, concept_cat_id, answer)
+        //    VALUES (?, ?, ?, ?);`,
+        //         [answer.concept_question_id, answer.concept_id, answer.concept_cat_id, answer.answer]
+        //     );
+        // }
 
         return res.json({
             message: 'New answers generated and stored successfully',
