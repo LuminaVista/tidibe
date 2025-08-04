@@ -456,6 +456,48 @@ brand.get('/brand_categories/:business_idea_id', authenticate, async (req, res) 
     }
 });
 
+// Single API: Edit and Approve ai answer
+brand.put('/ai/answer/edit/:brand_answer_id', authenticate, async (req, res) => {
+
+    let connection;
+
+    try {
+        let { brand_answer_id } = req.params;
+        brand_answer_id = parseInt(brand_answer_id, 10);
+        const { answer_content } = req.body; // This could be edited or original content
+
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+
+        // Validate input
+        if (!answer_content || answer_content.trim() === "") {
+            return res.status(400).json({ message: "Answer content is required." });
+        }
+
+        // Update the answer and mark as approved
+        await connection.execute(
+            `UPDATE Brand_Answers 
+             SET answer = ?, answer_status = 'approved'
+             WHERE brand_answer_id = ?;`,
+            [answer_content, brand_answer_id]
+        );
+
+        return res.status(200).json({
+            brand_answer_id: brand_answer_id,
+            message: "Answer approved successfully",
+            approved_answer: answer_content
+        });
+
+    } catch (error) {
+        console.error("Answer Approve Error:", error);
+        return res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+});
+
 
 // ----------------- AI LOGO Generation --------------------
 brand.post("/ai/logo/:business_idea_id", authenticate, async (req, res) => {

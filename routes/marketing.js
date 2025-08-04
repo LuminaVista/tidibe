@@ -410,6 +410,48 @@ marketing.put('/task/edit/:business_idea_id/:task_id', authenticate, async (req,
 
 });
 
+// Single API: Edit and Approve ai answer
+marketing.put('/ai/answer/edit/:marketing_answer_id', authenticate, async (req, res) => {
+
+    let connection;
+
+    try {
+        let { marketing_answer_id } = req.params;
+        marketing_answer_id = parseInt(marketing_answer_id, 10);
+        const { answer_content } = req.body; // This could be edited or original content
+
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+
+        // Validate input
+        if (!answer_content || answer_content.trim() === "") {
+            return res.status(400).json({ message: "Answer content is required." });
+        }
+
+        // Update the answer and mark as approved
+        await connection.execute(
+            `UPDATE Marketing_Answers 
+             SET answer = ?, answer_status = 'approved'
+             WHERE marketing_answer_id = ?;`,
+            [answer_content, marketing_answer_id]
+        );
+
+        return res.status(200).json({
+            marketing_answer_id: marketing_answer_id,
+            message: "Answer approved successfully",
+            approved_answer: answer_content
+        });
+
+    } catch (error) {
+        console.error("Answer Approve Error:", error);
+        return res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+});
+
 
 // get all the marketing categories
 marketing.get('/marketing_categories/:business_idea_id', authenticate, async (req, res) => {
