@@ -58,7 +58,7 @@ research.get('/ai/answer/:business_idea_id/:research_cat_id', authenticate, asyn
 
         // 3. Check if answers already exist in the database
         const [existingAnswers] = await connection.execute(
-            `SELECT rq.question, ra.answer, ra.research_question_id, ra.research_id, ra.research_cat_id
+            `SELECT rq.question, ra.answer, ra.research_question_id, ra.research_id, ra.research_cat_id, ra.research_answer_id
          FROM Research_Answers ra
          JOIN Research_Questions rq ON ra.research_question_id = rq.research_question_id
          WHERE ra.research_id = ? AND ra.research_cat_id = ?`,
@@ -116,13 +116,21 @@ research.get('/ai/answer/:business_idea_id/:research_cat_id', authenticate, asyn
         }
 
         // 6. Store the answers in the database
-        for (let answer of answers) {
-            await connection.execute(
+        for (let i = 0; i < answers.length; i++) {
+            const [result] = await connection.execute(
                 `INSERT INTO Research_Answers (research_question_id, research_id, research_cat_id, answer)
            VALUES (?, ?, ?, ?);`,
-                [answer.research_question_id, answer.research_id, answer.research_cat_id, answer.answer]
+                [answers[i].research_question_id, answers[i].research_id, answers[i].research_cat_id, answers[i].answer]
             );
+            answers[i].research_answer_id = result.insertId;
         }
+        // for (let answer of answers) {
+        //     await connection.execute(
+        //         `INSERT INTO Research_Answers (research_question_id, research_id, research_cat_id, answer)
+        //    VALUES (?, ?, ?, ?);`,
+        //         [answer.research_question_id, answer.research_id, answer.research_cat_id, answer.answer]
+        //     );
+        // }
 
         return res.json({
             message: 'New answers generated and stored successfully',

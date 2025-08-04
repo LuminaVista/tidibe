@@ -61,7 +61,7 @@ brand.get('/ai/answer/:business_idea_id/:brand_cat_id', authenticate, async (req
 
         // 3. Check if answers already exist in the database
         const [existingAnswers] = await connection.execute(
-            `SELECT bq.question, ba.answer, ba.brand_question_id, ba.brand_id, ba.brand_cat_id
+            `SELECT bq.question, ba.answer, ba.brand_question_id, ba.brand_id, ba.brand_cat_id, ba.brand_answer_id
          FROM Brand_Answers ba
          JOIN Brand_Questions bq ON ba.brand_question_id = bq.brand_question_id
          WHERE ba.brand_id = ? AND ba.brand_cat_id = ?`,
@@ -119,12 +119,13 @@ brand.get('/ai/answer/:business_idea_id/:brand_cat_id', authenticate, async (req
         }
 
         // 6. Store the answers in the database
-        for (let answer of answers) {
-            await connection.execute(
+        for (let i = 0; i < answers.length; i++) {
+            const [result] = await connection.execute(
                 `INSERT INTO Brand_Answers (brand_question_id, brand_id, brand_cat_id, answer)
            VALUES (?, ?, ?, ?);`,
-                [answer.brand_question_id, answer.brand_id, answer.brand_cat_id, answer.answer]
+                [answers[i].brand_question_id, answers[i].brand_id, answers[i].brand_cat_id, answers[i].answer]
             );
+            answers[i].brand_answer_id = result.insertId;
         }
 
         return res.json({

@@ -60,7 +60,7 @@ marketing.get('/ai/answer/:business_idea_id/:marketing_cat_id', authenticate, as
 
         // 3. Check if answers already exist in the database
         const [existingAnswers] = await connection.execute(
-            `SELECT mq.question, ma.answer, ma.marketing_question_id, ma.marketing_id, ma.marketing_cat_id
+            `SELECT mq.question, ma.answer, ma.marketing_question_id, ma.marketing_id, ma.marketing_cat_id, ma.marketing_answer_id
          FROM Marketing_Answers ma
          JOIN Marketing_Questions mq ON ma.marketing_question_id = mq.marketing_question_id
          WHERE ma.marketing_id = ? AND ma.marketing_cat_id = ?`,
@@ -118,12 +118,13 @@ marketing.get('/ai/answer/:business_idea_id/:marketing_cat_id', authenticate, as
         }
 
         // 6. Store the answers in the database
-        for (let answer of answers) {
-            await connection.execute(
+        for (let i = 0; i < answers.length; i++) {
+            const [result] = await connection.execute(
                 `INSERT INTO Marketing_Answers (marketing_question_id, marketing_id, marketing_cat_id, answer)
            VALUES (?, ?, ?, ?);`,
-                [answer.marketing_question_id, answer.marketing_id, answer.marketing_cat_id, answer.answer]
+                [answers[i].marketing_question_id, answers[i].marketing_id, answers[i].marketing_cat_id, answers[i].answer]
             );
+            answers[i].marketing_answer_id = result.insertId;
         }
 
         return res.json({
