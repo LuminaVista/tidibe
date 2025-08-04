@@ -58,7 +58,7 @@ budget.get('/ai/answer/:business_idea_id/:budget_cat_id', authenticate, async (r
 
         // 3. Check if answers already exist in the database
         const [existingAnswers] = await connection.execute(
-            `SELECT bq.question, ba.answer, ba.budget_question_id, ba.budget_id, ba.budget_cat_id
+            `SELECT bq.question, ba.answer, ba.budget_question_id, ba.budget_id, ba.budget_cat_id, ba.budget_answer_id
          FROM Budget_Answers ba
          JOIN Budget_Questions bq ON ba.budget_question_id = bq.budget_question_id
          WHERE ba.budget_id = ? AND ba.budget_cat_id = ?`,
@@ -116,12 +116,13 @@ budget.get('/ai/answer/:business_idea_id/:budget_cat_id', authenticate, async (r
         }
 
         // 6. Store the answers in the database
-        for (let answer of answers) {
-            await connection.execute(
+        for (let i = 0; i < answers.length; i++) {
+            const [result] = await connection.execute(
                 `INSERT INTO Budget_Answers (budget_question_id, budget_id, budget_cat_id, answer)
            VALUES (?, ?, ?, ?);`,
-                [answer.budget_question_id, answer.budget_id, answer.budget_cat_id, answer.answer]
+                [answers[i].budget_question_id, answers[i].budget_id, answers[i].budget_cat_id, answers[i].answer]
             );
+            answers[i].budget_answer_id = result.insertId;
         }
 
         return res.json({
@@ -407,6 +408,48 @@ budget.put('/task/edit/:business_idea_id/:task_id', authenticate, async (req, re
         }
     }
 
+});
+
+// Single API: Edit and Approve ai answer
+budget.put('/ai/answer/edit/:budget_answer_id', authenticate, async (req, res) => {
+
+    let connection;
+
+    try {
+        let { budget_answer_id } = req.params;
+        budget_answer_id = parseInt(budget_answer_id, 10);
+        const { answer_content } = req.body; // This could be edited or original content
+
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+
+        // Validate input
+        if (!answer_content || answer_content.trim() === "") {
+            return res.status(400).json({ message: "Answer content is required." });
+        }
+
+        // Update the answer and mark as approved
+        await connection.execute(
+            `UPDATE Budget_Answers 
+             SET answer = ?, answer_status = 'approved'
+             WHERE budget_answer_id = ?;`,
+            [answer_content, budget_answer_id]
+        );
+
+        return res.status(200).json({
+            budget_answer_id: budget_answer_id,
+            message: "Answer approved successfully",
+            approved_answer: answer_content
+        });
+
+    } catch (error) {
+        console.error("Answer Approve Error:", error);
+        return res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
 });
 
 

@@ -59,7 +59,7 @@ envc.get('/ai/answer/:business_idea_id/:envc_cat_id', authenticate, async (req, 
 
         // 3. Check if answers already exist in the database
         const [existingAnswers] = await connection.execute(
-            `SELECT eq.question, ea.answer, ea.envc_question_id, ea.envc_id, ea.envc_cat_id
+            `SELECT eq.question, ea.answer, ea.envc_question_id, ea.envc_id, ea.envc_cat_id, ea.envc_answer_id
          FROM Envc_Answers ea
          JOIN Envc_Questions eq ON ea.envc_question_id = eq.envc_question_id
          WHERE ea.envc_id = ? AND ea.envc_cat_id = ?`,
@@ -117,12 +117,13 @@ envc.get('/ai/answer/:business_idea_id/:envc_cat_id', authenticate, async (req, 
         }
 
         // 6. Store the answers in the database
-        for (let answer of answers) {
-            await connection.execute(
+        for (let i = 0; i < answers.length; i++) {
+            const [result] = await connection.execute(
                 `INSERT INTO Envc_Answers (envc_question_id, envc_id, envc_cat_id, answer)
            VALUES (?, ?, ?, ?);`,
-                [answer.envc_question_id, answer.envc_id, answer.envc_cat_id, answer.answer]
+                [answers[i].envc_question_id, answers[i].envc_id, answers[i].envc_cat_id, answers[i].answer]
             );
+            answers[i].envc_answer_id = result.insertId;
         }
 
         return res.json({
@@ -407,6 +408,48 @@ envc.put('/task/edit/:business_idea_id/:task_id', authenticate, async (req, res)
         }
     }
 
+});
+
+// Single API: Edit and Approve ai answer
+envc.put('/ai/answer/edit/:envc_answer_id', authenticate, async (req, res) => {
+
+    let connection;
+
+    try {
+        let { envc_answer_id } = req.params;
+        envc_answer_id = parseInt(envc_answer_id, 10);
+        const { answer_content } = req.body; // This could be edited or original content
+
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+
+        // Validate input
+        if (!answer_content || answer_content.trim() === "") {
+            return res.status(400).json({ message: "Answer content is required." });
+        }
+
+        // Update the answer and mark as approved
+        await connection.execute(
+            `UPDATE Envc_Answers 
+             SET answer = ?, answer_status = 'approved'
+             WHERE envc_answer_id = ?;`,
+            [answer_content, envc_answer_id]
+        );
+
+        return res.status(200).json({
+            envc_answer_id: envc_answer_id,
+            message: "Answer approved successfully",
+            approved_answer: answer_content
+        });
+
+    } catch (error) {
+        console.error("Answer Approve Error:", error);
+        return res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
 });
 
 
